@@ -15,10 +15,14 @@
 
 #include <llvm/Support/FileSystem.h>
 
+#include <algorithm>
 #include <memory>
+#include <string>
 #include <unistd.h>
+#include <utility>
 
 using namespace std::string_literals;
+static std::size_t MUTATION_SCORE_INFINITE = ~(std::size_t)0u;
 
 static std::string validateInputFile(const std::string &inputFile, mull::Diagnostics &diagnostics) {
   if (access(inputFile.c_str(), R_OK) != 0) {
@@ -233,6 +237,18 @@ int main(int argc, char **argv) {
   std::vector<std::unique_ptr<mull::MutationResult>> mutationResults =
       mutantRunner.runMutants(testProgram, extraArgs, filteredMutants);
 
+  // Count surviving mutants, for later
+  std::size_t surviving;
+  if (mutationResults.empty()) {
+    surviving = MUTATION_SCORE_INFINITE;
+  }
+  else {
+    surviving =
+      std::count_if(std::cbegin(mutationResults), std::cend(mutationResults), [](auto const& resPtr) {
+        return resPtr->getExecutionResult().status == mull::ExecutionStatus::Passed;
+      });
+  }
+
   auto result =
       std::make_unique<mull::Result>(std::move(filteredMutants), std::move(mutationResults));
   for (auto &reporter : reporters) {
@@ -244,6 +260,16 @@ int main(int argc, char **argv) {
   stringstream << "Total execution time: " << totalExecutionTime.duration()
                << mull::MetricsMeasure::precision();
   diagnostics.info(stringstream.str());
+
+  if (surviving && surviving != MUTATION_SCORE_INFINITE) {
+    stringstream.str(""s);
+    stringstream << "Surviving mutants: " << surviving;
+    diagnostics.info(stringstream.str());
+
+    if (!tool::AllowSurvivingEnabled) {
+      return 1;
+    }
+  }
 
   return 0;
 }
