@@ -69,6 +69,39 @@ llvm_mapping:
       cmake_cc: clang-11
       cmake_cxx: clang++-11
 
+  arch:
+    # llvm/clang14 provided by official repositories, not available in aur.
+    15.0.0:
+      cmake_search_paths: "/usr/lib/llvm15"
+      packages:
+        - llvm15
+      cmake_cc: /usr/lib/llvm15/clang
+      cmake_cxx: /usr/lib/llvm15/clang++
+    14.0.0:
+      cmake_search_paths: "/usr/lib/llvm14"
+      packages:
+        - llvm14
+      cmake_cc: /usr/lib/llvm14/clang
+      cmake_cxx: /usr/lib/llvm14/clang++
+    13.0.0:
+      cmake_search_paths: "/usr/lib/llvm13/"
+      packages:
+        - llvm13
+      cmake_cc: /usr/lib/llvm13/bin/clang
+      cmake_cxx: /usr/lib/llvm13/bin/clang++
+    12.0.0:
+      cmake_search_paths: "/usr/lib/llvm12/"
+      packages:
+        - llvm12
+      cmake_cc: /usr/lib/llvm12/bin/clang
+      cmake_cxx: /usr/lib/llvm12/bin/clang++
+    11.0.0:
+      cmake_search_paths: "/usr/lib/llvm11/"
+      packages:
+        - llvm11
+      cmake_cc: /usr/lib/llvm11/bin/clang
+      cmake_cxx: /usr/lib/llvm11/bin/clang++
+
 source_dir: "{{ working_dir }}/mull"
 debug_build_dir: "{{ working_dir }}/build.mull.debug.dir"
 release_build_dir: "{{ working_dir }}/build.mull.release.dir"

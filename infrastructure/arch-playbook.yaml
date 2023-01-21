@@ -1,0 +1,117 @@
+- name: Arch Setup
+  hosts: "{{ host | default('all') }}"
+
+  vars:
+    llvm_version: 14.0.0
+    platform: arch
+
+    # Arch doesn't really do packages
+    package_extensions:
+
+    mull_cxx_flags: -D_GLIBCXX_USE_CXX11_ABI=1
+
+    packages:
+      - base-devel
+      - cmake
+      - git
+      - ncurses
+      - m4
+      - ninja
+      - python-pip
+      - python-setuptools
+      - sqlite
+      - vim
+      - wget
+      - xz
+      - zlib
+
+  vars_files:
+    - helpers/variables.yaml
+
+  tasks:
+    - name: Enable Pacman Parallel Downloads
+      lineinfile:
+        path: /etc/pacman.conf
+        regexp: "ParallelDownloads.+"
+        line: "ParallelDownloads = 10"
+        state: present
+      become: true
+
+    - name: System Upgrade
+      pacman:
+        update_cache: true
+        upgrade: true
+      become: true
+
+    - name: Install Packages
+      pacman:
+        name: "{{ packages }}"
+        state: present
+      become: true
+
+    - name: Create aur Builder
+      user:
+        name: aur
+        create_home: yes
+        group: wheel
+      become: true
+
+    - name: Set NOPASSWD for aur Builder
+      lineinfile:
+        path: /etc/sudoers.d/11-aur
+        line: 'aur ALL=(ALL) NOPASSWD: /usr/bin/pacman'
+        create: yes
+        validate: 'visudo -cf %s'
+      become: true
+
+    - name: Relax Working Directory Permissions
+      file:
+        path: "{{ working_dir }}"
+        mode: '0777'
+      become: true
+
+    - name: Clone Mull's sources
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ source_dir }}"
+        version: "{{ gitref }}"
+
+    - name: Create Package Directory
+      file:
+        path: "{{ working_dir }}/{{ item }}"
+        mode: '0777'
+        state: "directory"
+      with_items:
+        - "{{ llvm_packages }}"
+
+    - name: Generate PKGBUILD
+      shell: "m4 -DPKGNAME={{ item }} {{ source_dir }}/infrastructure/helpers/pkgbuilds/llvmX.pkgbuild.m4 > {{ working_dir }}/{{ item }}/PKGBUILD"
+      args:
+        creates: "{{ working_dir }}/{{ item }}/PKGBUILD"
+      with_items:
+        - "{{ llvm_packages }}"
+
+    - name: Install LLVM Package
+      command: makepkg -si --noconfirm
+      args:
+        chdir: "{{ working_dir }}/{{ item }}"
+      become: true
+      become_user: aur
+      with_items:
+        - "{{ llvm_packages }}"
+
+    - name: Install Python Dependencies
+      pip:
+        name:
+          - lit==0.9.0
+          - filecheck==0.0.18
+          - cloudsmith-cli==0.26.0
+
+    - name: Build Mull
+      import_tasks: helpers/build-mull.yaml
+
+    - name: LIT Tests
+      import_tasks: helpers/lit-tests.yaml
+
+    - name: Integration Tests
+      import_tasks: helpers/integration-tests.yaml

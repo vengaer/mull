@@ -72,6 +72,30 @@ Vagrant.configure(2) do |config|
     end
   end
 
+  config.vm.define "arch" do |cfg|
+    cfg.vm.box = "archlinux/archlinux"
+    cfg.ssh.insert_key = false
+
+    configure_vm("arch", cfg)
+
+    cfg.vm.provision "shell",
+      inline: "pacman-key --init && \
+               pacman -Sy --noconfirm --needed archlinux-keyring && \
+               pacman -S --noconfirm --needed python"
+
+    cfg.vm.provision "ansible" do |ansible|
+      ansible.verbose = "v"
+      ansible.playbook = "arch-playbook.yaml"
+      ansible.extra_vars = {
+        ansible_python_interpreter: '/usr/bin/python',
+        checkout: ENV['checkout'] || 'true',
+        gitref: ENV['gitref'] || 'main',
+        llvm_version: ENV['LLVM_VERSION'] || '15.0.0',
+        mull_version: ENV['mull_version'] || "#{mull_version}"
+      }
+    end
+  end
+
   config.vm.define "fedora" do |cfg|
     cfg.vm.box = "fedora/29-cloud-base"
     cfg.vm.box_version = "29.20181024.1"

@@ -111,6 +111,7 @@
     dest: "packages/{{ lookup('file', 'PACKAGE_FILE_NAME') }}.{{ item }}"
     flat: true
   with_items: "{{ package_extensions }}"
+  when: package_extensions != None
 
 - name: Print Mull version
   command: mull-runner-{{ llvm_major }} -version
